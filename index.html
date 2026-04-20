@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cauvery Business Live Stream Q&A</title>
+<title>Cauvery Business Live Stream Q&A — v5.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -30,7 +30,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .q-controls{padding:7px 10px;border-bottom:1px solid #f1f5f9;display:flex;gap:5px;align-items:center;}
 .fchip{font-size:11px;padding:3px 8px;border-radius:999px;cursor:pointer;border:1px solid #e2e8f0;color:#64748b;background:#fff;}
 .fchip.on{background:#0c2d5e;color:#fff;border-color:#0c2d5e;}
-.q-list{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;}
+.q-list{flex:1;overflow-y:scroll;padding:6px;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:#0c2d5e #e2e8f0;}
+.q-list::-webkit-scrollbar{width:8px;}
+.q-list::-webkit-scrollbar-track{background:#f1f5f9;border-radius:4px;}
+.q-list::-webkit-scrollbar-thumb{background:#0c2d5e;border-radius:4px;}
+.q-list::-webkit-scrollbar-thumb:hover{background:#1e3a5f;}
 .q-item{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:all 0.15s;flex-shrink:0;}
 .q-item:hover{border-color:#0c2d5e;background:#eff6ff;}
 .q-item.selected{border-color:#f59e0b;background:#fffbeb;border-width:2px;}
@@ -140,12 +144,13 @@ input[type=password]:focus{outline:none;border-color:#0c2d5e;}
 <body>
 
 <div class="topbar">
-  <div class="brand">Cauvery <span>Business</span> Live Stream Q&amp;A</div>
+  <div class="brand">Cauvery <span>Business</span> Live Stream Q&amp;A <span style="font-size:11px;background:#f59e0b;color:#fff;padding:2px 7px;border-radius:999px;margin-left:6px;font-weight:700;">v5.0</span></div>
   <div class="live-pill" id="livePill" style="display:none;"><div class="ldot"></div>LIVE</div>
   <span class="spill pill-red" id="statusBadge">Not connected</span>
   <span class="spill pill-blue" id="qBadge">0 questions</span>
   <span class="spill pill-gray" id="libBadge">No library</span>
-  <span class="spill pill-gray" style="margin-left:auto;font-size:10px;" id="pollSt"></span>
+  <span class="spill pill-gray" style="font-size:10px;" id="pollSt"></span>
+  <button onclick="saveSession()" style="margin-left:auto;height:28px;padding:0 12px;border:1px solid #f59e0b;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:#f59e0b;color:#fff;">Save Session</button>
 </div>
 
 <div class="nav">
@@ -586,269 +591,20 @@ async function answerSelected(){
 
   const sys=`You are helping Elango of Cauvery Business answer a live YouTube viewer question about Indian share markets.
 
-ANSWER FORMAT — strictly follow this 4-part structure:
-1. MAIN ANSWER: 2-3 simple sentences. No jargon. Plain English. Like explaining to a friend over chai.
-2. ANALOGY: One simple real-life Indian analogy — cricket, grocery shop, family budget, festival, monsoon, chai etc.
-3. ONE LINER: One powerful memorable takeaway sentence.
-4. ANALYST VIEW: Only if question is about a specific company or stock — one sentence analyst consensus. Skip entirely if general question.
+ANSWER FORMAT — follow exactly:
+1. MAIN ANSWER: 3 numbered bullet points. Max 10 words per bullet. Simple plain English only.
+2. ANALOGY: Max 15 words. One Indian real life comparison — cricket, chai, grocery or family budget.
+3. ONE LINER: Max 10 words. Short punchy memorable takeaway.
+4. ANALYST VIEW: Only for company questions — max 15 words. Skip entirely for general questions.
 
-STRICT RULES:
-- No technical terms without immediate simple explanation
-- No specific price targets
-- Under 120 words total
-- Always use Indian context and references
-- End analyst view with "but always do your own homework"
-- If topic not in library answer confidently from own knowledge
-- Never say "I don't have information"
+RULES:
+- Number bullets clearly as 1. 2. 3.
+- Zero technical jargon whatsoever
+- No price targets ever
+- Total answer under 80 words
+- Always Indian context and references
+- End analyst view with: but always do your own homework
+- Always answer confidently — never say I do not know
 
-${hasLib?'ELANGO\'S LIBRARY (relevant section only):\n'+context:'No library loaded — answer from Indian market knowledge.'}`;
+${hasLib?'ELANGO LIBRARY RELEVANT SECTION:\n'+context:'Answer from your own Indian market knowledge.'}`;
 
-  try{
-    let messages;
-    if(S.snapB64){
-      messages=[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:'image/png',data:S.snapB64}},
-        {type:'text',text:'Viewer: "'+msg.msg+'"\n\nQuarterly result screenshot attached. Use the numbers from this image in your answer.'}
-      ]}];
-    }else{
-      messages=[{role:'user',content:'Viewer '+msg.author+' asks: "'+msg.msg+'"'}];
-    }
-
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key':antKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        system:sys,
-        messages
-      })
-    });
-
-    if(!res.ok){
-      const err=await res.json();
-      throw new Error(err.error?.message||'API error '+res.status);
-    }
-
-    const data=await res.json();
-    const raw=data.content?.find(b=>b.type==='text')?.text||'Could not generate answer.';
-
-    const mainMatch=raw.match(/(?:MAIN ANSWER:|1\.)\s*([\s\S]*?)(?=ANALOGY:|2\.|$)/i);
-    const analogyMatch=raw.match(/(?:ANALOGY:|2\.)\s*([\s\S]*?)(?=ONE LINER:|3\.|$)/i);
-    const oneMatch=raw.match(/(?:ONE LINER:|3\.)\s*([\s\S]*?)(?=ANALYST VIEW:|4\.|$)/i);
-    const analystMatch=raw.match(/(?:ANALYST VIEW:|4\.)\s*([\s\S]*?)$/i);
-
-    const main=(mainMatch?.[1]||raw).trim().replace(/^\d+\.\s*/,'');
-    const analogy=(analogyMatch?.[1]||'').trim().replace(/^\d+\.\s*/,'');
-    const oneliner=(oneMatch?.[1]||'').trim().replace(/^\d+\.\s*/,'');
-    const analyst=(analystMatch?.[1]||'').trim().replace(/^\d+\.\s*/,'');
-
-    S.ansCount++;
-    document.getElementById('ansCount').textContent=S.ansCount+' answered';
-
-    document.getElementById('aBody').innerHTML=`
-      <div class="a-q-card">
-        <div class="a-q-avatar">${esc(msg.initials)}</div>
-        <div>
-          <div class="a-q-viewer">${esc(msg.author)}</div>
-          <div class="a-q-text">${esc(msg.msg)}</div>
-          <div class="a-q-time">${msg.time}&nbsp;·&nbsp;<span class="${hasLib?'src-lib':'src-claude'} src-badge">${hasLib?'From your library':'Claude knowledge'}</span></div>
-        </div>
-      </div>
-      <div class="a-answer-card">
-        <div class="a-answer-header">
-          <span class="a-answer-label">Answer — speak this</span>
-        </div>
-        <div class="a-answer-body">
-          <div class="a-main-text" id="ansText">${esc(main)}</div>
-          ${analogy?`<div class="a-section analogy-sec"><div class="a-section-label">Analogy</div><div class="a-section-text">${esc(analogy)}</div></div>`:''}
-          ${oneliner?`<div class="a-section oneliner-sec"><div class="a-section-label">Key takeaway</div><div class="a-section-text">${esc(oneliner)}</div></div>`:''}
-          ${analyst&&analyst.toLowerCase()!=='skip'&&analyst.length>5?`<div class="a-section analyst-sec"><div class="a-section-label">Analyst view</div><div class="a-section-text">${esc(analyst)}</div></div>`:''}
-        </div>
-      </div>`;
-
-  }catch(e){
-    // Restore answered status on error
-    S.answeredIds.delete(S.selectedId);
-    document.getElementById('aBody').innerHTML=`
-      <div class="a-q-card"><div class="a-q-avatar">${esc(msg.initials)}</div><div><div class="a-q-viewer">${esc(msg.author)}</div><div class="a-q-text">${esc(msg.msg)}</div></div></div>
-      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:20px;margin-top:8px;">
-        <div style="font-size:14px;color:#dc2626;font-weight:600;margin-bottom:8px;">Could not generate answer</div>
-        <div style="font-size:13px;color:#991b1b;">${esc(e.message)}</div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:8px;">Check your Anthropic API key in Setup tab and try again.</div>
-      </div>`;
-    renderChat();
-  }
-  S.generating=false;
-  document.getElementById('ansBtn').disabled=false;
-}
-
-function copyAns(){
-  const t=document.getElementById('ansText')?.innerText;
-  if(!t){alert('No answer to copy yet.');return;}
-  navigator.clipboard.writeText(t).then(()=>{
-    const btn=document.querySelector('.a-top .tbtn:not(.amber)');
-    if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1500);}
-  });
-}
-function clearAns(){
-  S.selectedId=null;
-  document.getElementById('ansBtn').disabled=true;
-  document.getElementById('aBody').innerHTML=`<div class="a-empty-state"><div class="a-empty-icon">👆</div><div class="a-empty-title">Click any question on the left</div><div class="a-empty-sub">Questions appear in order — oldest first.<br>Click any question → answer appears here.<br><br>Simple language · Analogy · Key takeaway · Analyst view.</div></div>`;
-  renderChat();
-}
-function loadSnap(input){
-  const f=input.files[0];if(!f) return;
-  const r=new FileReader();
-  r.onload=e=>{
-    S.snapB64=e.target.result.split(',')[1];
-    document.getElementById('snapName').textContent=f.name;
-    document.getElementById('snapThumb').src=e.target.result;
-    document.getElementById('snapStrip').style.display='flex';
-  };
-  r.readAsDataURL(f);input.value='';
-}
-function clearSnap(){S.snapB64=null;document.getElementById('snapStrip').style.display='none';}
-
-// ===== CHECKLIST =====
-function setChk(id,st,sub){
-  const ic=document.getElementById('chk-'+id);
-  const sb=document.getElementById('chk-'+id+'-s');
-  if(!ic) return;
-  if(st==='ok'){ic.textContent='✓';ic.className='chk chk-ok';}
-  else if(st==='no'){ic.textContent='✗';ic.className='chk chk-no';}
-  else{ic.textContent='?';ic.className='chk chk-q';}
-  if(sb) sb.textContent=sub;
-}
-document.getElementById('videoId').addEventListener('input',function(){
-  setChk('vid',this.value.length>5?'ok':'no',this.value.length>5?'Video ID: '+this.value:'Paste from YouTube URL when live');
-});
-
-// ===== ORGANIZER =====
-const FOLDERS=[
-  {num:'01',name:'Index',key:'01_Index',color:'#374151',bg:'#f3f4f6'},
-  {num:'02',name:'Text Notes',key:'02_TextNotes',color:'#1e40af',bg:'#dbeafe'},
-  {num:'03',name:'Sectors',key:'03_Sectors',color:'#9a3412',bg:'#ffedd5'},
-  {num:'04',name:'Macros',key:'04_Macros',color:'#1e3a8a',bg:'#dbeafe'},
-  {num:'05',name:'Dashboard',key:'05_Dashboard',color:'#14532d',bg:'#dcfce7'},
-  {num:'06',name:'Thinkers',key:'06_Thinkers',color:'#4c1d95',bg:'#ede9fe'},
-  {num:'07',name:'Micros',key:'07_Micros',color:'#064e3b',bg:'#d1fae5'},
-  {num:'08',name:'Top Companies',key:'08_Top_companies_01',color:'#881337',bg:'#ffe4e6'},
-  {num:'09',name:'Overseas Invest.',key:'09_Overseas_Investment',color:'#78350f',bg:'#fef3c7'},
-  {num:'10',name:'Category',key:'10_Category',color:'#374151',bg:'#f3f4f6'},
-  {num:'11',name:'Formula',key:'11_Formula',color:'#1e40af',bg:'#dbeafe'},
-  {num:'12',name:'Budget',key:'12_Budget',color:'#78350f',bg:'#fef3c7'},
-  {num:'13',name:'Startup',key:'13_startup',color:'#064e3b',bg:'#d1fae5'},
-  {num:'14',name:'Personality Type',key:'14_Personality_Type',color:'#4c1d95',bg:'#ede9fe'},
-];
-const batches={};let selectedKey=null;
-
-function renderFolderGrid(){
-  document.getElementById('folderGrid').innerHTML=FOLDERS.map(f=>{
-    const b=batches[f.key];const loaded=!!b;const isSel=selectedKey===f.key;
-    let st='Not loaded';
-    if(loaded){const p=[];if(b.txtCount)p.push(b.txtCount+' txt');if(b.xlsxCount)p.push(b.xlsxCount+' xlsx');st=p.join(' · ')+' · '+(b.bytes/1024).toFixed(0)+' KB';}
-    return `<div class="folder-chip${loaded?' loaded':''}${isSel?' sel':''}" onclick="selectFolder('${f.key}')" style="${isSel?'border-color:#0c2d5e;':''}" >
-      <div class="fnum">${f.num}</div><div class="fn">${esc(f.name)}</div><div class="fst">${st}</div></div>`;
-  }).join('');
-}
-function selectFolder(key){
-  selectedKey=key;const f=FOLDERS.find(x=>x.key===key);
-  document.getElementById('selLabel').textContent='Selected: '+f.num+' — '+f.name;
-  renderFolderGrid();
-}
-async function readExcel(file){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      try{
-        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
-        let out='[Excel: '+file.name+']\n';
-        wb.SheetNames.forEach(sn=>{
-          const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
-          if(!rows.length) return;
-          out+='\nSheet: '+sn+'\n'+'-'.repeat(30)+'\n';
-          rows.forEach(row=>{const line=row.map(c=>String(c).trim()).filter(c=>c).join('\t');if(line.trim())out+=line+'\n';});
-        });
-        resolve(out);
-      }catch(e){reject(e);}
-    };
-    reader.onerror=()=>reject(new Error('Read failed'));
-    reader.readAsArrayBuffer(file);
-  });
-}
-async function loadBatch(input){
-  if(!selectedKey){document.getElementById('errBox').textContent='Please click a folder tile first.';document.getElementById('errBox').style.display='block';input.value='';return;}
-  const files=Array.from(input.files);if(!files.length) return;
-  const txts=files.filter(f=>f.name.match(/\.txt$/i));
-  const xlsxs=files.filter(f=>f.name.match(/\.(xlsx|xls)$/i));
-  const skip=files.length-txts.length-xlsxs.length;
-  const total=txts.length+xlsxs.length;
-  if(!total){document.getElementById('errBox').textContent='No .txt or .xlsx files found.';document.getElementById('errBox').style.display='block';input.value='';return;}
-  document.getElementById('errBox').style.display='none';
-  const pw=document.getElementById('progWrap');const bar=document.getElementById('progBar');const lbl=document.getElementById('progLbl');
-  pw.style.display='block';bar.style.width='0%';
-  let combined='',done=0;
-  for(const f of txts){lbl.textContent='Reading: '+f.name;combined+='\n--- '+f.name+' ---\n'+(await f.text())+'\n';done++;bar.style.width=Math.round(done/total*100)+'%';}
-  for(const f of xlsxs){lbl.textContent='Converting Excel: '+f.name;try{combined+='\n--- '+f.name+' (Excel) ---\n'+(await readExcel(f))+'\n';}catch(e){combined+='\n--- '+f.name+' (error) ---\n';}done++;bar.style.width=Math.round(done/total*100)+'%';}
-  if(!batches[selectedKey]) batches[selectedKey]={content:'',txtCount:0,xlsxCount:0,bytes:0};
-  batches[selectedKey].content+=combined;batches[selectedKey].txtCount+=txts.length;batches[selectedKey].xlsxCount+=xlsxs.length;batches[selectedKey].bytes+=combined.length;
-  setTimeout(()=>{pw.style.display='none';lbl.textContent='';},500);
-  if(skip>0){document.getElementById('warnBox').textContent=skip+' file(s) skipped (PNG images — use screenshot button during stream).';document.getElementById('warnBox').style.display='block';}
-  else document.getElementById('warnBox').style.display='none';
-  input.value='';renderFolderGrid();renderBatches();refreshPreview();
-}
-function renderBatches(){
-  const keys=Object.keys(batches);
-  if(!keys.length){document.getElementById('batchesCard').style.display='none';document.getElementById('exportCard').style.display='none';return;}
-  document.getElementById('batchesCard').style.display='block';document.getElementById('exportCard').style.display='block';
-  document.getElementById('sCats').textContent=keys.length;
-  document.getElementById('sTxt').textContent=keys.reduce((a,k)=>a+batches[k].txtCount,0);
-  document.getElementById('sXlsx').textContent=keys.reduce((a,k)=>a+batches[k].xlsxCount,0);
-  document.getElementById('sSize').textContent=(keys.reduce((a,k)=>a+batches[k].bytes,0)/1024).toFixed(0)+' KB';
-  document.getElementById('sRem').textContent=14-keys.length;
-  document.getElementById('batchList').innerHTML=FOLDERS.filter(f=>batches[f.key]).map(f=>{
-    const b=batches[f.key];const p=[];if(b.txtCount)p.push(b.txtCount+' txt');if(b.xlsxCount)p.push(b.xlsxCount+' xlsx');
-    return `<div class="batch-item"><span class="batch-tag" style="background:${f.bg};color:${f.color};">${f.num} ${esc(f.name)}</span><span style="flex:1;font-size:12px;color:#475569;">${p.join(' + ')}</span><span style="font-size:12px;color:#94a3b8;">${(b.bytes/1024).toFixed(1)} KB</span><button class="batch-del" onclick="deleteBatch('${f.key}')">Remove</button></div>`;
-  }).join('');
-}
-function deleteBatch(key){delete batches[key];renderFolderGrid();renderBatches();refreshPreview();}
-function buildMaster(){
-  const now=new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'});
-  const loaded=FOLDERS.filter(f=>batches[f.key]);
-  let out='CAUVERY BUSINESS — INDIAN MARKET RESEARCH LIBRARY\nGenerated: '+now+'\nFolders: '+loaded.length+' of 14\n'+'='.repeat(60)+'\n\nTABLE OF CONTENTS\n'+'-'.repeat(30)+'\n';
-  loaded.forEach(f=>{out+=f.num+'. '+f.name+' ('+batches[f.key].txtCount+' txt, '+batches[f.key].xlsxCount+' xlsx)\n';});
-  out+='\n'+'='.repeat(60)+'\n';
-  for(const f of loaded){out+='\n'+'#'.repeat(60)+'\n# '+f.num+' — '+f.name.toUpperCase()+'\n'+'#'.repeat(60)+'\n';out+=batches[f.key].content+'\n';}
-  return out;
-}
-function refreshPreview(){
-  if(!Object.keys(batches).length) return;
-  const m=buildMaster();
-  document.getElementById('previewBox').textContent=m.slice(0,1200)+(m.length>1200?'\n\n... ['+(m.length/1024).toFixed(0)+' KB total] ...':'');
-}
-function exportMaster(){
-  const m=buildMaster();
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([m],{type:'text/plain;charset=utf-8'}));
-  a.download='Cauvery_Business_Library.txt';a.click();
-}
-function clearAll(){
-  if(!confirm('Clear everything and start over?')) return;
-  Object.keys(batches).forEach(k=>delete batches[k]);selectedKey=null;
-  document.getElementById('selLabel').textContent='No folder selected';
-  renderFolderGrid();renderBatches();document.getElementById('previewBox').textContent='';
-}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-// ===== INIT =====
-restoreKeys();
-renderFolderGrid();
-</script>
-</body>
-</html>
