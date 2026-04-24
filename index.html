@@ -611,3 +611,267 @@ RULES:
 
 ${hasLib?'ELANGO LIBRARY RELEVANT SECTION:\n'+context:'Answer from your own Indian market knowledge.'}`;
 
+
+  try{
+    const messages=[{role:'user',content:msg.msg+(S.snapB64?'\n\n[Viewer also sent a screenshot/chart image]':'')}];
+    const body={model:'claude-haiku-4-5-20251001',max_tokens:400,system:sys,messages};
+    if(S.snapB64){
+      body.messages=[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:S.snapB64}},
+        {type:'text',text:msg.msg}
+      ]}];
+    }
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':antKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify(body)
+    });
+    const d=await r.json();
+    if(d.error) throw new Error(d.error.message);
+    const raw=d.content?.[0]?.text||'No answer generated.';
+    renderAnswer(msg,raw,hasLib);
+    S.ansCount++;
+    document.getElementById('ansCount').textContent=S.ansCount+' answered';
+  }catch(e){
+    document.getElementById('aBody').innerHTML+='<div class="err-box" style="display:block;margin-top:12px;">Error: '+esc(e.message)+'</div>';
+  }finally{
+    S.generating=false;
+    document.getElementById('ansBtn').disabled=false;
+  }
+}
+
+function renderAnswer(msg,raw,hasLib){
+  // Parse sections
+  const mainMatch=raw.match(/1\..+?(?=ANALOGY:|$)/s);
+  const analogyMatch=raw.match(/ANALOGY:\s*(.+?)(?=ONE LINER:|$)/s);
+  const oneMatch=raw.match(/ONE LINER:\s*(.+?)(?=ANALYST VIEW:|$)/s);
+  const analystMatch=raw.match(/ANALYST VIEW:\s*(.+?)$/s);
+
+  const mainText=mainMatch?mainMatch[0].trim():raw;
+  const analogy=analogyMatch?analogyMatch[1].trim():'';
+  const oneliner=oneMatch?oneMatch[1].trim():'';
+  const analyst=analystMatch?analystMatch[1].trim():'';
+
+  document.getElementById('aBody').innerHTML=`
+    <div class="a-q-card">
+      <div class="a-q-avatar">${esc(msg.initials)}</div>
+      <div>
+        <div class="a-q-viewer">${esc(msg.author)}</div>
+        <div class="a-q-text">${esc(msg.msg)}</div>
+        <div class="a-q-time">${msg.time}</div>
+      </div>
+    </div>
+    <div class="a-answer-card">
+      <div class="a-answer-header">
+        <span class="a-answer-label">Answer</span>
+        <span class="src-badge ${hasLib?'src-lib':'src-claude'}">${hasLib?'From Library':'Claude AI'}</span>
+      </div>
+      <div class="a-answer-body">
+        <div class="a-main-text">${esc(mainText).replace(/\n/g,'<br>')}</div>
+        ${analogy?`<div class="a-section analogy-sec"><div class="a-section-label">Analogy</div><div class="a-section-text">${esc(analogy)}</div></div>`:''}
+        ${oneliner?`<div class="a-section oneliner-sec"><div class="a-section-label">One Liner</div><div class="a-section-text">${esc(oneliner)}</div></div>`:''}
+        ${analyst?`<div class="a-section analyst-sec"><div class="a-section-label">Analyst View</div><div class="a-section-text">${esc(analyst)}</div></div>`:''}
+      </div>
+    </div>`;
+}
+
+// ===== SCREENSHOT =====
+function loadSnap(input){
+  const f=input.files[0];if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const b64=e.target.result.split(',')[1];
+    S.snapB64=b64;
+    document.getElementById('snapStrip').style.display='flex';
+    document.getElementById('snapName').textContent=f.name;
+    document.getElementById('snapThumb').src=e.target.result;
+  };
+  r.readAsDataURL(f);
+}
+function clearSnap(){
+  S.snapB64=null;
+  document.getElementById('snapStrip').style.display='none';
+  document.getElementById('snapFile').value='';
+}
+
+// ===== COPY / CLEAR =====
+function copyAns(){
+  const body=document.getElementById('aBody');
+  const text=body.innerText||body.textContent||'';
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=event.target;btn.textContent='Copied!';
+    setTimeout(()=>btn.textContent='Copy',1500);
+  }).catch(()=>alert('Copy failed — please select and copy manually.'));
+}
+function clearAns(){
+  S.selectedId=null;
+  document.getElementById('ansBtn').disabled=true;
+  document.getElementById('aBody').innerHTML=`
+    <div class="a-empty-state">
+      <div class="a-empty-icon">👆</div>
+      <div class="a-empty-title">Click any question on the left</div>
+      <div class="a-empty-sub">Questions appear in order — oldest first.<br>Click any question → answer appears here.<br><br>Simple language · Analogy · Key takeaway · Analyst view.</div>
+    </div>`;
+  renderChat();
+}
+
+// ===== SAVE SESSION =====
+function saveSession(){
+  if(!S.messages.length){alert('No questions to save yet.');return;}
+  const lines=S.messages.map((m,i)=>`Q${i+1} [${m.author}] ${m.time}\n${m.msg}\n${S.answeredIds.has(m.id)?'[ANSWERED]':'[PENDING]'}`);
+  const blob=new Blob([lines.join('\n\n---\n\n')],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='CauverySessions_'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();
+}
+
+// ===== CHECKLIST =====
+function setChk(key,state,msg){
+  const el=document.getElementById('chk-'+key);
+  const sl=document.getElementById('chk-'+key+'-s');
+  if(!el) return;
+  el.className='chk '+(state==='ok'?'chk-ok':state==='no'?'chk-no':'chk-q');
+  el.textContent=state==='ok'?'✓':state==='no'?'✗':'?';
+  if(sl) sl.textContent=msg||'';
+}
+
+// ===== ORGANIZER =====
+const FOLDERS=['Sector Research','Company Notes','Market Updates','Budget & Economy','Technical Analysis','Mutual Funds','Banking & NBFC','IT & Tech','Pharma & Healthcare','Infra & Power','FMCG & Consumer','Global Markets','Personal Finance','Results & Earnings'];
+const batches={};
+let selFolder=null;
+
+function initFolders(){
+  const grid=document.getElementById('folderGrid');
+  grid.innerHTML=FOLDERS.map((f,i)=>`
+    <div class="folder-chip${batches[f]?' loaded':''}" id="fc-${i}" onclick="selF('${f}',${i})">
+      <div class="fnum">${String(i+1).padStart(2,'0')}</div>
+      <div class="fn">${f}</div>
+      <div class="fst">${batches[f]?batches[f].files.length+' files':'Empty'}</div>
+    </div>`).join('');
+  const rem=FOLDERS.filter(f=>!batches[f]).length;
+  document.getElementById('sRem').textContent=rem;
+}
+
+function selF(name,idx){
+  selFolder=name;
+  document.getElementById('selLabel').textContent='Selected: '+name;
+  document.querySelectorAll('.folder-chip').forEach((c,i)=>{
+    c.className='folder-chip'+(batches[FOLDERS[i]]?' loaded':'')+(i===idx?' sel':'');
+  });
+}
+
+async function loadBatch(input){
+  if(!selFolder){alert('Please click a folder first.');input.value='';return;}
+  const files=Array.from(input.files);if(!files.length) return;
+  const progWrap=document.getElementById('progWrap');
+  const progBar=document.getElementById('progBar');
+  const progLbl=document.getElementById('progLbl');
+  progWrap.style.display='block';
+  const loaded=[];let errors=[];
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    progBar.style.width=((i+1)/files.length*100)+'%';
+    progLbl.textContent='Reading '+f.name+'...';
+    try{
+      let text='';
+      if(f.name.endsWith('.txt')){text=await f.text();}
+      else if(f.name.endsWith('.xlsx')||f.name.endsWith('.xls')){
+        const ab=await f.arrayBuffer();
+        const wb=XLSX.read(ab,{type:'array'});
+        text=wb.SheetNames.map(sn=>{
+          const ws=wb.Sheets[sn];
+          return '=== Sheet: '+sn+' ===\n'+XLSX.utils.sheet_to_csv(ws);
+        }).join('\n\n');
+      }
+      if(text.trim()) loaded.push({name:f.name,size:f.size,text});
+    }catch(e){errors.push(f.name+': '+e.message);}
+  }
+  progWrap.style.display='none';input.value='';
+  if(!loaded.length&&errors.length){
+    const eb=document.getElementById('errBox');
+    eb.style.display='block';eb.textContent='Failed to read: '+errors.join(', ');return;
+  }
+  if(!batches[selFolder]) batches[selFolder]={files:[]};
+  loaded.forEach(f=>{
+    if(!batches[selFolder].files.find(x=>x.name===f.name))
+      batches[selFolder].files.push(f);
+  });
+  if(errors.length){
+    const wb=document.getElementById('warnBox');
+    wb.style.display='block';wb.textContent='Skipped: '+errors.join(', ');
+  }
+  updateStats();initFolders();renderBatches();
+}
+
+function updateStats(){
+  let txt=0,xlsx=0,sz=0;
+  Object.values(batches).forEach(b=>b.files.forEach(f=>{
+    if(f.name.endsWith('.txt')) txt++;
+    else xlsx++;
+    sz+=f.size;
+  }));
+  document.getElementById('sCats').textContent=Object.keys(batches).length;
+  document.getElementById('sTxt').textContent=txt;
+  document.getElementById('sXlsx').textContent=xlsx;
+  document.getElementById('sSize').textContent=(sz/1024).toFixed(0)+' KB';
+  const hasAny=Object.keys(batches).length>0;
+  document.getElementById('batchesCard').style.display=hasAny?'block':'none';
+  document.getElementById('exportCard').style.display=hasAny?'block':'none';
+  if(hasAny){
+    const prev=Object.entries(batches).map(([cat,b])=>`\n=== ${cat} ===\n`+b.files.map(f=>f.text.slice(0,200)).join('\n')).join('\n');
+    document.getElementById('previewBox').textContent=prev.slice(0,2000)+'...';
+  }
+}
+
+function renderBatches(){
+  document.getElementById('batchList').innerHTML=Object.entries(batches).map(([cat,b])=>`
+    <div class="batch-item">
+      <span class="batch-tag" style="background:#dbeafe;color:#1d4ed8;">${cat}</span>
+      <span style="font-size:12px;color:#1a1a2e;">${b.files.length} files · ${(b.files.reduce((a,f)=>a+f.size,0)/1024).toFixed(0)} KB</span>
+      <button class="batch-del" onclick="delBatch('${cat}')">Remove</button>
+    </div>`).join('');
+}
+
+function delBatch(cat){delete batches[cat];updateStats();initFolders();renderBatches();}
+
+function exportMaster(){
+  const sections=Object.entries(batches).map(([cat,b])=>{
+    const header='='.repeat(60)+'\n=== '+cat.toUpperCase()+' ===\n'+'='.repeat(60);
+    const body=b.files.map(f=>'--- '+f.name+' ---\n'+f.text).join('\n\n');
+    return header+'\n\n'+body;
+  }).join('\n\n\n');
+  const master='CAUVERY BUSINESS KNOWLEDGE LIBRARY\nGenerated: '+new Date().toLocaleString('en-IN')+'\n\n'+sections;
+  const blob=new Blob([master],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Cauvery_Business_Library.txt';
+  a.click();
+}
+
+function clearAll(){
+  if(!confirm('Clear all loaded folders?')) return;
+  Object.keys(batches).forEach(k=>delete batches[k]);
+  selFolder=null;
+  document.getElementById('selLabel').textContent='No folder selected';
+  document.getElementById('errBox').style.display='none';
+  document.getElementById('warnBox').style.display='none';
+  updateStats();initFolders();renderBatches();
+}
+
+// ===== UTILS =====
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== INIT =====
+window.addEventListener('DOMContentLoaded',()=>{
+  restoreKeys();
+  initFolders();
+  document.getElementById('videoId').addEventListener('input',function(){
+    setChk('vid',this.value.trim().length>5?'ok':'no',this.value.trim().length>5?'Video ID entered':'Paste from YouTube URL when live');
+  });
+});
+</script>
+</body>
+</html>
