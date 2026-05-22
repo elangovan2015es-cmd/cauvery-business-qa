@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cauvery Business Live Stream Q&A — v5.1</title>
+<title>Cauvery Business Live Stream Q&A — v5.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -147,7 +147,7 @@ input[type=password]:focus{outline:none;border-color:#0c2d5e;}
 <body>
 
 <div class="topbar">
-  <div class="brand">Cauvery <span>Business</span> Live Stream Q&amp;A <span style="font-size:11px;background:#f59e0b;color:#fff;padding:2px 7px;border-radius:999px;margin-left:6px;font-weight:700;">v5.1</span></div>
+  <div class="brand">Cauvery <span>Business</span> Live Stream Q&amp;A <span style="font-size:11px;background:#f59e0b;color:#fff;padding:2px 7px;border-radius:999px;margin-left:6px;font-weight:700;">v5.2</span></div>
   <div class="live-pill" id="livePill" style="display:none;"><div class="ldot"></div>LIVE</div>
   <span class="spill pill-red" id="statusBadge">Not connected</span>
   <span class="spill pill-blue" id="qBadge">0 questions</span>
@@ -225,10 +225,10 @@ input[type=password]:focus{outline:none;border-color:#0c2d5e;}
         <div class="hint">Anthropic key: console.anthropic.com → API Keys. YouTube key: console.cloud.google.com → YouTube Data API v3 → Credentials.</div>
       </div>
       <div class="card">
-        <div class="card-title">Library files — load multiple .txt files</div>
+        <div class="card-title">Library files — load multiple .txt / .md files</div>
         <button class="sbtn primary" onclick="document.getElementById('libFiles').click()">Select library files</button>
-        <input type="file" id="libFiles" multiple accept=".txt,.html,.htm" style="display:none;width:auto;" onchange="loadLibraryFiles(this)">
-        <div class="hint">Hold Cmd (Mac) to select multiple. Accepts .txt and .html files. HTML is auto-converted to plain text.</div>
+        <input type="file" id="libFiles" multiple accept=".txt,.md,.html,.htm" style="display:none;width:auto;" onchange="loadLibraryFiles(this)">
+        <div class="hint">Hold Cmd (Mac) to select multiple. Accepts .txt, .md and .html files. HTML is auto-converted to plain text.</div>
         <div style="margin-top:8px;" id="libFileList"></div>
         <div style="font-size:12px;color:#16a34a;font-weight:600;margin-top:6px;" id="libTotal"></div>
       </div>
@@ -262,7 +262,8 @@ input[type=password]:focus{outline:none;border-color:#0c2d5e;}
           <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0;color:#64748b;">API keys</td><td style="padding:6px 0;color:#1a1a2e;font-weight:600;">Saved permanently in browser</td></tr>
           <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0;color:#64748b;">Smart library</td><td style="padding:6px 0;color:#1a1a2e;font-weight:600;">Sends only relevant section — fast answers</td></tr>
           <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0;color:#64748b;font-weight:700;color:#f59e0b;">v5.1 — Spelling fix</td><td style="padding:6px 0;color:#1a1a2e;font-weight:600;">Company name typos auto-corrected — no pause needed</td></tr>
-          <tr><td style="padding:6px 0;color:#64748b;font-weight:700;color:#f59e0b;">v5.1 — HTML support</td><td style="padding:6px 0;color:#1a1a2e;font-weight:600;">Library now reads .html files — stripped to plain text</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0;color:#64748b;font-weight:700;color:#f59e0b;">v5.1 — HTML support</td><td style="padding:6px 0;color:#1a1a2e;font-weight:600;">Library now reads .html files — stripped to plain text</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;font-weight:700;color:#f59e0b;">v5.2 — Markdown support</td><td style="padding:6px 0;color:#1a1a2e;font-weight:600;">Library now reads .md files — loaded as plain text</td></tr>
         </table>
       </div>
     </div>
@@ -272,15 +273,15 @@ input[type=password]:focus{outline:none;border-color:#0c2d5e;}
 <!-- ORGANIZER PAGE -->
 <div class="page" id="page-organizer">
   <div class="card">
-    <div style="display:flex;align-items:center;margin-bottom:10px;"><span class="step-c">1</span><span class="card-title" style="margin-bottom:0;">Click folder → load files (.txt and .xlsx)</span></div>
+    <div style="display:flex;align-items:center;margin-bottom:10px;"><span class="step-c">1</span><span class="card-title" style="margin-bottom:0;">Click folder → load files (.txt, .md, .html and .xlsx)</span></div>
     <div class="folder-grid" id="folderGrid"></div>
     <button class="sbtn primary" onclick="document.getElementById('batchFiles').click()">Load files from selected folder</button>
-    <input type="file" id="batchFiles" multiple accept=".txt,.xlsx,.xls,.html,.htm" style="display:none;width:auto;" onchange="loadBatch(this)">
+    <input type="file" id="batchFiles" multiple accept=".txt,.md,.xlsx,.xls,.html,.htm" style="display:none;width:auto;" onchange="loadBatch(this)">
     <span style="font-size:12px;color:#64748b;margin-left:8px;" id="selLabel">No folder selected</span>
     <div class="err-box" id="errBox"></div>
     <div class="warn-box" id="warnBox"></div>
     <div class="prog-wrap" id="progWrap"><div class="prog-track"><div class="prog-bar" id="progBar"></div></div><div class="prog-lbl" id="progLbl"></div></div>
-    <div class="hint" style="margin-top:8px;">Ctrl+A in each folder. Reads .txt, .xlsx and .html automatically. HTML is stripped to plain text. PNG images — use screenshot button during stream.</div>
+    <div class="hint" style="margin-top:8px;">Ctrl+A in each folder. Reads .txt, .md, .xlsx and .html automatically. HTML is stripped to plain text. PNG images — use screenshot button during stream.</div>
   </div>
   <div class="card" id="batchesCard" style="display:none;">
     <div style="display:flex;align-items:center;margin-bottom:10px;"><span class="step-c">2</span><span class="card-title" style="margin-bottom:0;">Loaded folders</span></div>
@@ -360,6 +361,7 @@ async function loadLibraryFiles(input){
     if(S.libraryFiles.find(x=>x.name===f.name)) continue;
     const raw=await f.text();
     const isHtml=/\.(html?|htm)$/i.test(f.name);
+    const isMd=/\.md$/i.test(f.name);
     const txt=isHtml?'[HTML: '+f.name+']\n'+stripHtml(raw):raw;
     S.libraryFiles.push({name:f.name,size:f.size,text:txt});
   }
@@ -795,7 +797,7 @@ async function loadBatch(input){
     progLbl.textContent='Reading '+f.name+'...';
     try{
       let text='';
-      if(f.name.endsWith('.txt')){text=await f.text();}
+      if(f.name.endsWith('.txt')||f.name.endsWith('.md')){text=await f.text();}
       else if(f.name.match(/\.html?$/i)||f.name.endsWith('.htm')){
         const raw=await f.text();
         text='[HTML: '+f.name+']\n'+stripHtml(raw);
@@ -831,7 +833,7 @@ async function loadBatch(input){
 function updateStats(){
   let txt=0,xlsx=0,sz=0;
   Object.values(batches).forEach(b=>b.files.forEach(f=>{
-    if(f.name.endsWith('.txt')) txt++;
+    if(f.name.endsWith('.txt')||f.name.endsWith('.md')) txt++;
     else xlsx++;
     sz+=f.size;
   }));
